@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 import sqlite3
 from datetime import datetime
+import os
 
 # Criando objeto da classe Flask
 app = Flask(__name__)
@@ -284,6 +285,9 @@ def verifica_medidas(idVaso, temperatura, umidade):
         banco.commit()
 
 
+def main():
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
 if __name__ == "__main__":
-    print("Aplicação no ar!")
-    app.run(host='0.0.0.0', debug=True, port=3001)
+    main()
