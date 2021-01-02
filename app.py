@@ -93,7 +93,7 @@ def obtem_vaso():
     try:
         for item in info:
             lista_vasos.append({"id": item[0], "status": item[1], "bomba": item[2],
-                                "tempo": item[3], "vegetal": item[4]})
+                                "tempo": item[3], "ultimaBomba": item[4], "vegetal": item[5]})
 
         return jsonify({'lista_vasos': lista_vasos})
     except:
@@ -147,10 +147,11 @@ def ativa_bomba():
 
     idVaso = request.json.get('idVaso')
     tempo = request.json.get('tempo')
+    data = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     try:
-        query_str = 'UPDATE Vaso SET tempo = \'' + tempo + '\', bomba = 1' + \
-                    ' WHERE id = ' + idVaso
+        query_str = 'UPDATE Vaso SET tempo = \'' + tempo + '\', bomba = 1' + ', ultimaBomba = \'' + data + \
+                    '\' WHERE id = ' + idVaso
         cursor.execute(query_str)
         banco.commit()
         return make_response(jsonify('A bomba será ativada!'), 201)
@@ -191,13 +192,14 @@ def liga_bomba():
     lista_vasos_bomba = []
 
     # Selecionando os dados do banco
-    query_str = 'SELECT tempo FROM Vaso'
-    info = cursor.execute(query_str).fetchall() # list [(0,),(0,)]
-    tempo1 = info[0]
-    tempo2 = info[1]
+    query_str = 'SELECT tempo, ultimaBomba FROM Vaso'
+    info = cursor.execute(query_str).fetchall() # list [(0,None),(0,None)]
+    print(info)
+    vaso1 = info[0]
+    vaso2 = info[1]
 
     try:
-        lista_vasos_bomba.append({"tempo1": tempo1[0], "tempo2": tempo2[0]})
+        lista_vasos_bomba.append({"tempo1":vaso1[0],"ultimaBomba1":vaso1[1],"tempo2":vaso2[0], "ultimaBomba2": vaso2[1]})
         query_str = 'UPDATE Vaso SET tempo = 0, bomba = 0' # Zera novamente a bomba do vaso
         cursor.execute(query_str)
         banco.commit()
@@ -240,7 +242,7 @@ def add_info():
     idVaso = request.json.get('idVaso')
     temperatura = request.json.get('t')
     umidade = request.json.get('u')
-    data = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    data = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     # Verifica se o VASO está ativo
     query_str = 'SELECT status FROM Vaso WHERE id = ' + idVaso
@@ -277,9 +279,10 @@ def verifica_medidas(idVaso, temperatura, umidade):
     aux = cursor.execute(query_str).fetchall()[0]
     tempIdeal = aux[0]
     umidadeIdeal = aux[1]
+    data = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     if float(temperatura) > 0.3 * float(tempIdeal) and float(umidade) < 0.8 * float(umidadeIdeal):
-        query_str = 'UPDATE Vaso SET tempo = \'' + str(5) + '\', bomba = 1' + \
+        query_str = 'UPDATE Vaso SET tempo = \'' + str(5) + '\', bomba = 1' + ', ultimaBomba = ' + data + \
                     ' WHERE id = ' + idVaso
         cursor.execute(query_str)
         banco.commit()
