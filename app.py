@@ -189,7 +189,7 @@ def liga_bomba():
     cursor = banco.cursor()
 
     # Lista de vasos que devem ligar a bomba
-    lista_vasos_bomba = []
+    #lista_vasos_bomba = []
 
     # Selecionando os dados do banco
     query_str = 'SELECT tempo, ultimaBomba FROM Vaso'
@@ -199,11 +199,11 @@ def liga_bomba():
     vaso2 = info[1]
 
     try:
-        lista_vasos_bomba.append({"tempo1":vaso1[0],"ultimaBomba1":vaso1[1],"tempo2":vaso2[0], "ultimaBomba2": vaso2[1]})
+        #lista_vasos_bomba.append({"tempo1":vaso1[0],"ultimaBomba1":vaso1[1],"tempo2":vaso2[0], "ultimaBomba2": vaso2[1]})
         query_str = 'UPDATE Vaso SET tempo = 0, bomba = 0' # Zera novamente a bomba do vaso
         cursor.execute(query_str)
         banco.commit()
-        return jsonify({'lista_vasos_bomba': lista_vasos_bomba})
+        return jsonify({"tempo1":vaso1[0],"ultimaBomba1":vaso1[1],"tempo2":vaso2[0], "ultimaBomba2": vaso2[1]})
 
     except:
         return make_response(jsonify('Erro!'), 404)
@@ -216,18 +216,13 @@ def vaso_ativo():
     banco = sqlite3.connect('banco.db')
     cursor = banco.cursor()
 
-    # Lista de vasos que devem ligar a bomba
-    lista_vasos_ativos = []
-
     # Selecionando os dados do banco
     query_str = 'SELECT status FROM Vaso'
     info = cursor.execute(query_str).fetchall() # list[(1,),(1,)]
     status_vaso1 = info[0]
     status_vaso2 = info[1]
 
-    lista_vasos_ativos.append({"idVaso1": status_vaso1[0], "idVaso2": status_vaso2[0]})
-
-    return jsonify({'lista_vasos_bomba': lista_vasos_ativos})
+    return jsonify({"idVaso1": status_vaso1[0], "idVaso2": status_vaso2[0]})
 
 
 # Nodemcu realiza para inserir informação no banco
@@ -249,7 +244,7 @@ def add_info():
     aux = cursor.execute(query_str).fetchall() # list[(1,0)]
     status = aux[0]
 
-    if status[0] == 1:
+    if status[0] == 1: # O vegetal do vaso deve existir
         # Inserção no banco
         query_str = 'INSERT INTO Informacao (temperatura,umidade,data,idvaso) VALUES (\'' \
                     + temperatura + '\',\'' + umidade + '\',\'' + data + '\',\'' + idVaso + '\')'
@@ -261,7 +256,7 @@ def add_info():
             return make_response(jsonify('Objeto cadastrado!'), 200)
 
         except Exception as e:
-            return make_response(jsonify('Objeto não cadastrado!'), 406)
+            return make_response(jsonify('Objeto não cadastrado, o vegetal do vaso deve existir!'), 406)
     else:
         return make_response(jsonify('O Vaso não está ativo!'), 406)
 
@@ -291,6 +286,7 @@ def verifica_medidas(idVaso, temperatura, umidade):
 def main():
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 if __name__ == "__main__":
     main()
