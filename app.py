@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 import sqlite3
@@ -7,6 +9,7 @@ import os
 # Criando objeto da classe Flask
 app = Flask(__name__)
 CORS(app)
+
 
 # App mobile realiza para obter lista de vegetais cadastrados
 @app.route('/vegetal', methods=['GET'])
@@ -170,8 +173,7 @@ def obtem_info():
     lista_info = []
 
     # Selecionando os dados do banco
-    query_str = 'SELECT informacao.idVaso, vaso.nomeVegetal, informacao.temperatura, informacao.umidade, informacao.data ' \
-                'FROM Informacao JOIN Vaso ON informacao.idVaso = Vaso.id ORDER BY informacao.data desc'
+    query_str = 'SELECT idVaso, nomeVegetal, temperatura, umidade, data FROM Informacao ORDER BY data desc'
 
     info = cursor.execute(query_str).fetchall()
     for item in info:
@@ -188,37 +190,33 @@ def liga_bomba():
     banco = sqlite3.connect('banco.db')
     cursor = banco.cursor()
 
-    # Lista de vasos que devem ligar a bomba
-    #lista_vasos_bomba = []
-
     # Selecionando os dados do banco
     query_str = 'SELECT tempo, ultimaBomba FROM Vaso'
-    info = cursor.execute(query_str).fetchall() # list [(0,None),(0,None)]
+    info = cursor.execute(query_str).fetchall()  # list [(0,None),(0,None)]
     print(info)
     vaso1 = info[0]
     vaso2 = info[1]
 
     try:
-        #lista_vasos_bomba.append({"tempo1":vaso1[0],"ultimaBomba1":vaso1[1],"tempo2":vaso2[0], "ultimaBomba2": vaso2[1]})
-        query_str = 'UPDATE Vaso SET tempo = 0, bomba = 0' # Zera novamente a bomba do vaso
+        query_str = 'UPDATE Vaso SET tempo = 0, bomba = 0'  # Zera novamente a bomba do vaso
         cursor.execute(query_str)
         banco.commit()
-        return jsonify({"tempo1":vaso1[0],"ultimaBomba1":vaso1[1],"tempo2":vaso2[0], "ultimaBomba2": vaso2[1]})
+        return jsonify({"tempo1": vaso1[0], "ultimaBomba1": vaso1[1], "tempo2": vaso2[0], "ultimaBomba2": vaso2[1]})
 
     except:
         return make_response(jsonify('Erro!'), 404)
 
+
 # Nodemcu realiza para verificar qual vaso está ativo
 @app.route('/ativo', methods=['GET'])
 def vaso_ativo():
-
     # Conexão com o banco
     banco = sqlite3.connect('banco.db')
     cursor = banco.cursor()
 
     # Selecionando os dados do banco
     query_str = 'SELECT status FROM Vaso'
-    info = cursor.execute(query_str).fetchall() # list[(1,),(1,)]
+    info = cursor.execute(query_str).fetchall()  # list[(1,),(1,)]
     status_vaso1 = info[0]
     status_vaso2 = info[1]
 
@@ -228,7 +226,6 @@ def vaso_ativo():
 # Nodemcu realiza para inserir informação no banco
 @app.route('/informacao', methods=['POST'])
 def add_info():
-
     # Conexão com o banco
     banco = sqlite3.connect('banco.db')
     cursor = banco.cursor()
@@ -240,37 +237,45 @@ def add_info():
     data = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     # Verifica se o VASO está ativo
-    query_str = 'SELECT status FROM Vaso WHERE id = ' + idVaso
-    aux = cursor.execute(query_str).fetchall() # list[(1,0)]
-    status = aux[0]
+    query_str = 'SELECT nomeVegetal, status FROM Vaso WHERE id = ' + idVaso
+    aux = cursor.execute(query_str).fetchall()  # list[(nome,0)]
+    vaso = aux[0]
+    nomeVegetal = vaso[0]
+    status = vaso[1]
 
-    if status[0] == 1: # O vegetal do vaso deve existir
+    if status == 1:  # O vegetal do vaso deve existir
+        # Conexão com o banco
+        banco = sqlite3.connect('banco.db')
+        cursor = banco.cursor()
+
         # Inserção no banco
-        query_str = 'INSERT INTO Informacao (temperatura,umidade,data,idvaso) VALUES (\'' \
-                    + temperatura + '\',\'' + umidade + '\',\'' + data + '\',\'' + idVaso + '\')'
-        cursor.execute(query_str)
+        query_str = 'INSERT INTO Informacao (temperatura,umidade,data,idvaso,nomeVegetal) VALUES (\'' \
+                    + temperatura + '\',\'' + umidade + '\',\'' + data + '\',\'' + idVaso + '\',\'' + nomeVegetal + '\') '
 
-        try:
+        if verifica_medidas(idVaso, temperatura, umidade, nomeVegetal):  # Analisando situação do vegetal
+            cursor.execute(query_str)
             banco.commit()
-            verifica_medidas(idVaso, temperatura, umidade) # Analisando situação do vegetal
+            return make_response(jsonify('Objeto cadastrado, a bomba será acionada!'), 200)
+        else:
+            cursor.execute(query_str)
+            banco.commit()
             return make_response(jsonify('Objeto cadastrado!'), 200)
-
-        except Exception as e:
-            return make_response(jsonify('Objeto não cadastrado, o vegetal do vaso deve existir!'), 406)
     else:
         return make_response(jsonify('O Vaso não está ativo!'), 406)
 
 
 # Verifica se precisa acionar a bomba e adiciona na lista de bomba
-def verifica_medidas(idVaso, temperatura, umidade):
-
+def verifica_medidas(idVaso, temperatura, umidade, nomeVegetal):
     # Conexão com o banco
     banco = sqlite3.connect('banco.db')
     cursor = banco.cursor()
 
-    query_str = 'SELECT Vegetal.tempIdeal, Vegetal.umidadeIdeal FROM Vaso INNER JOIN Vegetal ON Vaso.nomeVegetal = Vegetal.nome' \
-                ' WHERE Vaso.id = ' + idVaso
+    res = False
 
+    #query_str = 'SELECT Vegetal.tempIdeal, Vegetal.umidadeIdeal FROM Vaso INNER JOIN Vegetal ON Vaso.nomeVegetal = Vegetal.nome' \
+       #         ' WHERE Vaso.id = ' + idVaso
+
+    query_str = 'SELECT tempIdeal, umidadeIdeal FROM Vegetal WHERE nome = \'' + nomeVegetal + '\''
     aux = cursor.execute(query_str).fetchall()[0]
     tempIdeal = aux[0]
     umidadeIdeal = aux[1]
@@ -281,6 +286,9 @@ def verifica_medidas(idVaso, temperatura, umidade):
                     ' WHERE id = ' + idVaso
         cursor.execute(query_str)
         banco.commit()
+        res = True
+
+    return res
 
 
 def main():
